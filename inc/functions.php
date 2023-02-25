@@ -1,5 +1,5 @@
 <?php
-require_once '../vendor/autoload.php';
+require_once '././vendor/autoload.php';
 use Dotenv\Dotenv;
 $dotenv = Dotenv::create(dirname(__DIR__, 1), '.env');
 $dotenv->load();
