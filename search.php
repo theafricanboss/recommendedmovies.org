@@ -48,9 +48,6 @@ if (!is_array($recommendations)) {
     echo_error("No recommendations found.");
 }
 
-// $encodedname = urlencode($name);
-// $results = file_get_contents("https://socialcane.com/movies?n=$encodedname&t=$type");
-
 $results = $recommendations;
 // print_r($results);
 
