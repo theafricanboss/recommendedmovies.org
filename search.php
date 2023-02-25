@@ -3,7 +3,7 @@
 // ini_set('display_startup_errors', '1');
 // error_reporting(E_ALL);
 
-require './functions.php';
+require './inc/functions.php';
 
 $id = isset($_GET['id']) ? secure_input($_GET['id']) : null;
 $name = isset($_GET['n']) ? secure_input($_GET['n']) : null;
