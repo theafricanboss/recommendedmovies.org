@@ -1,7 +1,7 @@
 <?php
 require_once '././vendor/autoload.php';
 use Dotenv\Dotenv;
-$dotenv = Dotenv::create(dirname(__DIR__, 1), '.env');
+$dotenv = Dotenv::createImmutable(dirname(__DIR__, 2), '.env');
 $dotenv->load();
 define('TMDB_API_KEY', getenv('TMDB_API_KEY'));
 define('TMDB_ACCESS_TOKEN', getenv('TMDB_ACCESS_TOKEN'));
