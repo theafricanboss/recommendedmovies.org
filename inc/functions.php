@@ -2,10 +2,23 @@
 require_once '././vendor/autoload.php';
 use Dotenv\Dotenv;
 $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2), '.env');
-$dotenv->load();
-define('TMDB_API_KEY', getenv('TMDB_API_KEY'));
-define('TMDB_ACCESS_TOKEN', getenv('TMDB_ACCESS_TOKEN'));
+$dotenv->safeLoad();
+define('TMDB_API_KEY', $_ENV['TMDB_API_KEY']);
 define('TMDB_URL', "https://api.themoviedb.org/3");
+
+if (empty(TMDB_API_KEY)) {
+  echo_error("TMDB_API_KEY is not set");
+}
+
+function echo_error($text) {
+  echo '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">';
+    echo '<div class="h-100 d-flex align-items-center justify-content-center">
+    <div class=""><p>Error: <span style="color:red">' . $text . '</span></p>
+    <p>Contact an administrator at <a href="mailto:info@recommendedmovies.org" target="_blank" rel="noopener noreferrer">info@recommendedmovies.org</a></p>
+    <br><p><a href="/">Return to the homepage</a></p>
+    </div></div>';
+    die();
+}
 
 function secure_input($text) {
     $text = trim($text);

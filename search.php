@@ -14,8 +14,7 @@ if ($type && $id) {
 } else if ($type && $name) {
     // http://localhost:5555/search.php?t=movie&n=the%20matrix
 } else {
-    header("Location: /");
-    exit();
+  echo_error("Missing parameters.");
 }
 
 $recommendations = null;
@@ -46,8 +45,7 @@ if ($type == "movie") {
 
 // if recommendations is not an object, redirect to home page
 if (!is_array($recommendations)) {
-    header("Location: /");
-    exit();
+    echo_error("No recommendations found.");
 }
 
 // $encodedname = urlencode($name);
@@ -106,7 +104,8 @@ function get_results($item) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no">
-    <title>Recommended Movies</title>
+    <title><?php echo $results['name']; ?> | Recommended Movies</title>
+    <meta name="description" content="Recommended movies, TV shows like <?php echo $results['name']; ?>. <?php echo $results['description']; ?>">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="assets/style.min.css">
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.0/css/all.css">
