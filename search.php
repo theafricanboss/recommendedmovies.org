@@ -120,7 +120,7 @@ function get_results($item) {
         </p>
         <?php endif; ?>
         <div id="search-home" class="d-flex justify-content-center align-items-center justify-content-xxl-center search-content">
-            <form class="d-flex flex-row justify-content-around align-items-center justify-content-xxl-center" style="max-width: 80%;width: 650px;" method="get" action="/search.php">
+            <form class="d-flex flex-row justify-content-around align-items-center justify-content-xxl-center" style="max-width: 80%;width: 100vw;" method="get" action="/search.php">
             <input class="form-control search-input" type="text" name="n" placeholder="<?php echo $results['name']; ?>" autocomplete="on" required />
                 <div class="mx-3">
                     <div class="form-check"><input id="movie" class="form-check-input" type="radio" name="t" value="movie" required /><label class="form-check-label" for="movie">Movie</label></div>
@@ -269,6 +269,8 @@ function get_results($item) {
         </div>
     </section>
     <?php } ?>
+
+    <?php include_once './inc/footer.php'; ?>
 
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>

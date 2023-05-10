@@ -1,0 +1,1 @@
+<div class="text-center footer-home-add mt-5"><a class="text-white" href="https://github.com/theafricanboss/recommendedmovies.org" target="_blank"><i class="fab fa-github mx-2"></i>Contribute to this project on Github</a></div>
