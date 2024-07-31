@@ -67,6 +67,7 @@ function get_results($item) {
         : ( isset($item["overview"])
         ? $item["overview"]
         : "");
+    $short_description = substr($description, 0, 100);
     $image = isset($item['backdrop_path']) ? "https://image.tmdb.org/t/p/w500".$item['backdrop_path'] : './assets/default.jpg';
     // $url = isset($item['url']) ? $item['url'] : "/search.php?t=$type&id=$id"; // search by id is down
     $url = isset($item['url']) ? $item['url'] : "/search.php?t=$type&n=$name";
@@ -77,18 +78,21 @@ function get_results($item) {
     if (empty($name)) return;
     $html = '<div class="col-12 col-sm-6 col-md-4 col-lg-2 flw-item">
                 <div class="film-poster">
-                <img title="' . $description . '" alt="' . $name . '" class="film-poster-img lazyload" src="' . $image . '">
-                <div class="film-poster-overlay" data-toggle="tooltip" data-placement="top" title="' . $description . '">
-                    <p class="d-none film-poster-ahref p-3">' . $description . '<br></p>
-                    <a href="' . $url . '" title="' . $description . '" class="film-poster-ahref"><i class="fa fa-link"></i></a>
-                </div>
+                    <img title="' . $description . '" alt="' . $name . '" class="film-poster-img lazyload" src="' . $image . '">
+                    <div class="film-poster-overlay" data-toggle="tooltip" data-placement="top" title="' . $description . '">
+                        <p class="d-none film-poster-ahref p-3">' . $description . '<br></p>
+                        <a href="' . $url . '" title="' . $description . '" class="film-poster-ahref"><i class="fa fa-link"></i></a>
+                    </div>
                 </div>
                 <div class="film-detail film-detail-fix">
                     <h3 class="film-name"><a href="' . $url . '" title="' . $description . '">' . $name . '</a></h3>
                     <div class="fd-infor">
-                    <span class="fdi-item">' . $date . '</span><span class="dot"></span>
-                    <span class="fdi-item fdi-duration">' . $duration . '</span>
-                    <span class="float-right fdi-type">' . strtoupper($type) . '</span>
+                        <span class="fdi-item">' . $date . '</span><span class="dot"></span>
+                        <span class="fdi-item fdi-duration">' . $duration . '</span>
+                        <span class="float-right fdi-type">' . strtoupper($type) . '</span>
+                    </div>
+                    <div class="fd-infor">
+                        <br><p class="film-poster-ahref">' . $short_description . '<span title="' . $description . '" style="cursor:pointer">...</span></p>
                     </div>
                 </div>
             </div>';
