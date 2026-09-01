@@ -5,13 +5,13 @@ $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2), '.env');
 $dotenv->safeLoad();
 define('TMDB_API_KEY', $_ENV['TMDB_API_KEY'] ?? '');
 define('TMDB_URL', "https://api.themoviedb.org/3");
-// This is TMDB's documented `secure_base_url` (see /configuration) — the only
-// image host their API guarantees. media.themoviedb.org is not part of the
-// public API; it 301-redirects to this exact host, so using it directly saves
-// a round trip and matches https://developer.themoviedb.org/docs/image-basics.
+// TMDB's documented `secure_base_url` (see /configuration) — the only image
+// host their API guarantees. media.themoviedb.org is not part of the public
+// API; it 301-redirects to this exact host, so using it directly saves a round
+// trip and matches https://developer.themoviedb.org/docs/image-basics.
 define('TMDB_IMG', "https://image.tmdb.org/t/p");
 define('TMDB_CACHE_DIR', sys_get_temp_dir() . '/recommended_movies_cache');
-define('TMDB_TIMEOUT', 8); // seconds allowed per TMDB request
+define('TMDB_TIMEOUT', 10); // seconds allowed per TMDB request
 
 if (empty(TMDB_API_KEY)) {
   echo_error("TMDB_API_KEY is not set", 500);
@@ -222,6 +222,45 @@ function tmdb_rating($item) {
 }
 
 /**
+ * Is TMDB's image CDN actually reachable from this server?
+ *
+ * Any HTTP response at all proves the route works — even a 403 — so this
+ * checks for the absence of a connection error rather than a 200. The answer
+ * is cached: a working route is rechecked hourly, a broken one every few
+ * minutes so the site recovers quickly once the block lifts.
+ */
+function tmdb_images_reachable() {
+    static $reachable = null;
+    if ($reachable !== null) return $reachable;
+    if (TMDB_IMG_PROXY === '') return $reachable = true;
+
+    $cached = tmdb_cache_get('__tmdb_img_reachable_ok', 3600);
+    if ($cached !== null) return $reachable = true;
+    $cached = tmdb_cache_get('__tmdb_img_reachable_fail', 300);
+    if ($cached !== null) return $reachable = false;
+
+    $ch = curl_init(TMDB_IMG . '/w92/');
+    curl_setopt_array($ch, [
+        CURLOPT_NOBODY => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 2,
+        CURLOPT_TIMEOUT => 3,
+    ]);
+    curl_exec($ch);
+    $reachable = curl_errno($ch) === 0;
+    curl_close($ch);
+
+    tmdb_cache_set($reachable ? '__tmdb_img_reachable_ok' : '__tmdb_img_reachable_fail', ['ok' => $reachable]);
+    return $reachable;
+}
+
+/** Build an image URL on whichever route currently works. */
+function tmdb_img($size, $path) {
+    $base = tmdb_images_reachable() ? TMDB_IMG : TMDB_IMG_PROXY;
+    return $base . "/$size$path";
+}
+
+/**
  * Poster artwork for a listing card.
  *
  * Sizes below are exactly TMDB's documented `poster_sizes` /
@@ -241,15 +280,14 @@ function tmdb_poster($item) {
     if (!empty($item['poster_path'])) {
         $path = $item['poster_path'];
         return [
-            'src' => TMDB_IMG . "/w342$path",
-            'srcset' => TMDB_IMG . "/w342$path 342w, " . TMDB_IMG . "/w500$path 500w",
+            'src' => tmdb_img('w342', $path),
+            'srcset' => tmdb_img('w342', $path) . ' 342w, ' . tmdb_img('w500', $path) . ' 500w',
             'sizes' => '(max-width: 640px) 45vw, (max-width: 1200px) 22vw, 200px',
         ];
     }
     if (!empty($item['backdrop_path'])) {
-        $path = $item['backdrop_path'];
         return [
-            'src' => TMDB_IMG . "/w780$path",
+            'src' => tmdb_img('w780', $item['backdrop_path']),
             'srcset' => '',
             'sizes' => '',
         ];
@@ -261,8 +299,8 @@ function tmdb_poster($item) {
 
 /** Wide artwork for the page hero; falls back to the poster, then nothing. */
 function tmdb_backdrop($item) {
-    if (!empty($item['backdrop_path'])) return TMDB_IMG . "/w1280{$item['backdrop_path']}";
-    if (!empty($item['poster_path'])) return TMDB_IMG . "/w780{$item['poster_path']}";
+    if (!empty($item['backdrop_path'])) return tmdb_img('w1280', $item['backdrop_path']);
+    if (!empty($item['poster_path'])) return tmdb_img('w780', $item['poster_path']);
     return '';
 }
 

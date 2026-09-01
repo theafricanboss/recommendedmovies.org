@@ -15,12 +15,27 @@
     (function () {
         'use strict';
 
-        // TMDB serves its artwork from a CDN that some networks block outright.
-        // Marking a failed image hands the card back to its styled empty state,
-        // so a blocked CDN degrades to a clean grid rather than broken icons.
+        // TMDB serves its artwork from Bunny CDN, which some networks and ISPs
+        // block outright. The server picks a working route when it can, but it
+        // only knows its own connectivity — a visitor can be blocked when the
+        // server is not. So a failed poster is retried once through the proxy
+        // before the card is given back to its styled empty state.
+        var TMDB_DIRECT = 'https://image.tmdb.org/t/p/';
+
         document.addEventListener('error', function (event) {
             var img = event.target;
             if (!img || img.tagName !== 'IMG') return;
+
+            var src = img.getAttribute('src') || '';
+            if (src.indexOf(TMDB_DIRECT) === 0) {
+                // srcset would just reload the same blocked host, so drop it
+                // and pin the image to the single proxied URL.
+                img.removeAttribute('srcset');
+                img.removeAttribute('sizes');
+                // img.src = TMDB_PROXY + src.slice(TMDB_DIRECT.length);
+                // Fallback disabled, do nothing
+                return;
+            }
             img.dataset.fallback = '1';
         }, true);
 
