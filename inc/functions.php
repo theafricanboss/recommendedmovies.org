@@ -5,6 +5,10 @@ $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2), '.env');
 $dotenv->safeLoad();
 define('TMDB_API_KEY', $_ENV['TMDB_API_KEY'] ?? '');
 define('TMDB_URL', "https://api.themoviedb.org/3");
+// This is TMDB's documented `secure_base_url` (see /configuration) — the only
+// image host their API guarantees. media.themoviedb.org is not part of the
+// public API; it 301-redirects to this exact host, so using it directly saves
+// a round trip and matches https://developer.themoviedb.org/docs/image-basics.
 define('TMDB_IMG', "https://image.tmdb.org/t/p");
 define('TMDB_CACHE_DIR', sys_get_temp_dir() . '/recommended_movies_cache');
 define('TMDB_TIMEOUT', 8); // seconds allowed per TMDB request
@@ -219,6 +223,12 @@ function tmdb_rating($item) {
 
 /**
  * Poster artwork for a listing card.
+ *
+ * Sizes below are exactly TMDB's documented `poster_sizes` /
+ * `backdrop_sizes` from /configuration — w92, w154, w185, w342, w500, w780,
+ * original for posters; w300, w780, w1280, original for backdrops. An earlier
+ * version of this used an undocumented `w{W}_and_h{H}_face` crop mode that
+ * isn't part of the public API and isn't guaranteed to work; it's gone.
  *
  * Cards are portrait (2:3), so a poster is what belongs in them — the old
  * code fed them 16:9 `backdrop_path` images, which object-fit then cropped
