@@ -10,7 +10,19 @@ define('TMDB_URL', "https://api.themoviedb.org/3");
 // API; it 301-redirects to this exact host, so using it directly saves a round
 // trip and matches https://developer.themoviedb.org/docs/image-basics.
 define('TMDB_IMG', "https://image.tmdb.org/t/p");
-define('TMDB_CACHE_DIR', sys_get_temp_dir() . '/recommended_movies_cache');
+// A directory of our own next to .env, not the system's shared /tmp.
+// On CloudLinux/CageFS shared hosting, sys_get_temp_dir() resolves to a
+// jailed, quota-limited /tmp (surfaced to the account owner as something
+// like /home/.cagefs/tmp/...), and this cache — one small JSON file per
+// distinct TMDB request, with no cap — can accumulate tens of thousands of
+// files over real traffic. That's an inode-quota trip on shared hosting, not
+// a disk-space one, and it will keep recurring wherever /tmp is quota-limited
+// regardless of file size. Living beside .env keeps it outside any such jail,
+// outside the web root (same directory .env already proves is unservable),
+// and easy for the account owner to find and clear by hand if ever needed.
+define('TMDB_CACHE_DIR', dirname(__DIR__, 2) . '/storage/tmdb-cache');
+define('TMDB_CACHE_MAX_FILES', 12000); // hard cap: bounds inode usage regardless of traffic
+define('TMDB_CACHE_MAX_AGE', 777600); // 9 days — past every TTL used in this file (max 7d), so always safe to sweep
 define('TMDB_TIMEOUT', 10); // seconds allowed per TMDB request
 
 if (empty(TMDB_API_KEY)) {
@@ -85,6 +97,9 @@ function secure_input($text) {
 function tmdb_cache_path($key) {
     if (!is_dir(TMDB_CACHE_DIR)) {
         @mkdir(TMDB_CACHE_DIR, 0777, true);
+        // Belt-and-braces: the directory lives outside the web root already,
+        // but a misconfigured host could still map a URL onto it directly.
+        @file_put_contents(TMDB_CACHE_DIR . '/.htaccess', "Require all denied\n");
     }
     return TMDB_CACHE_DIR . '/' . md5($key) . '.json';
 }
@@ -101,6 +116,46 @@ function tmdb_cache_get($key, $ttl) {
 
 function tmdb_cache_set($key, $data) {
     @file_put_contents(tmdb_cache_path($key), json_encode($data));
+    // Only runs on a cache miss (a network request just happened anyway) and
+    // only occasionally even then, so the directory scan below never sits on
+    // the hot, fully-cached path — but it runs often enough that the file
+    // count stays bounded under real traffic instead of growing forever.
+    if (mt_rand(1, 50) === 1) tmdb_cache_gc();
+}
+
+/**
+ * Keep the cache directory's file count bounded. Two passes: first drop
+ * anything past TMDB_CACHE_MAX_AGE (always safe — every real TTL in this file
+ * is shorter), then if still over the cap, drop the oldest files until back
+ * under it. This is what stops the cache from ever again growing into a
+ * shared-host inode-quota problem.
+ */
+function tmdb_cache_gc() {
+    $entries = @scandir(TMDB_CACHE_DIR);
+    if ($entries === false) return;
+
+    $now = time();
+    $files = [];
+    foreach ($entries as $name) {
+        if (substr($name, -5) !== '.json') continue;
+        $path = TMDB_CACHE_DIR . '/' . $name;
+        $mtime = @filemtime($path);
+        if ($mtime === false) continue;
+
+        if ($now - $mtime > TMDB_CACHE_MAX_AGE) {
+            @unlink($path);
+            continue;
+        }
+        $files[$path] = $mtime;
+    }
+
+    $excess = count($files) - TMDB_CACHE_MAX_FILES;
+    if ($excess <= 0) return;
+
+    asort($files); // oldest mtime first
+    foreach (array_slice(array_keys($files), 0, $excess) as $path) {
+        @unlink($path);
+    }
 }
 
 function tmdb_build_url($endpoint) {
@@ -221,43 +276,9 @@ function tmdb_rating($item) {
     return number_format((float) $score, 1);
 }
 
-/**
- * Is TMDB's image CDN actually reachable from this server?
- *
- * Any HTTP response at all proves the route works — even a 403 — so this
- * checks for the absence of a connection error rather than a 200. The answer
- * is cached: a working route is rechecked hourly, a broken one every few
- * minutes so the site recovers quickly once the block lifts.
- */
-function tmdb_images_reachable() {
-    static $reachable = null;
-    if ($reachable !== null) return $reachable;
-    if (TMDB_IMG_PROXY === '') return $reachable = true;
-
-    $cached = tmdb_cache_get('__tmdb_img_reachable_ok', 3600);
-    if ($cached !== null) return $reachable = true;
-    $cached = tmdb_cache_get('__tmdb_img_reachable_fail', 300);
-    if ($cached !== null) return $reachable = false;
-
-    $ch = curl_init(TMDB_IMG . '/w92/');
-    curl_setopt_array($ch, [
-        CURLOPT_NOBODY => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 2,
-        CURLOPT_TIMEOUT => 3,
-    ]);
-    curl_exec($ch);
-    $reachable = curl_errno($ch) === 0;
-    curl_close($ch);
-
-    tmdb_cache_set($reachable ? '__tmdb_img_reachable_ok' : '__tmdb_img_reachable_fail', ['ok' => $reachable]);
-    return $reachable;
-}
-
-/** Build an image URL on whichever route currently works. */
+/** Build a TMDB image URL for a given documented size preset and file path. */
 function tmdb_img($size, $path) {
-    $base = tmdb_images_reachable() ? TMDB_IMG : TMDB_IMG_PROXY;
-    return $base . "/$size$path";
+    return TMDB_IMG . "/$size$path";
 }
 
 /**
